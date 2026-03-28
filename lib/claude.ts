@@ -1,6 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+// Lazy init - only at request time so env vars are available in all environments
+function getClient() {
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+}
 
 export interface AdCopy {
   headline: string
@@ -37,7 +40,7 @@ Return ONLY valid JSON with these exact fields (no markdown, no extra text):
   "linkedin_caption": "professional linkedin caption under 300 chars"
 }`
 
-  const message = await client.messages.create({
+  const message = await getClient().messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
     messages: [{ role: 'user', content: prompt }],

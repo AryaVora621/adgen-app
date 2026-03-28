@@ -43,7 +43,8 @@ export async function POST(req: NextRequest) {
       .select('id')
       .single()
     if (bizError || !newBiz) {
-      return NextResponse.json({ error: 'Failed to create business' }, { status: 500 })
+      console.error('Business insert error:', bizError)
+      return NextResponse.json({ error: 'Failed to create business', detail: bizError?.message }, { status: 500 })
     }
     businessId = newBiz.id
   }
@@ -64,7 +65,8 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (productError || !product) {
-    return NextResponse.json({ error: 'Failed to save product' }, { status: 500 })
+    console.error('Product insert error:', productError)
+    return NextResponse.json({ error: 'Failed to save product', detail: productError?.message }, { status: 500 })
   }
 
   // Generate copy with Claude
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (err) {
     console.error('Claude error:', err)
-    return NextResponse.json({ error: 'Failed to generate ad copy' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to generate ad copy', detail: String(err) }, { status: 500 })
   }
 
   // Build image URLs (Satori renders on demand via edge function)

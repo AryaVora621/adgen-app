@@ -67,7 +67,7 @@ export default function ScrapeGeneratePage() {
     })
     const data = await res.json()
     if (!res.ok) {
-      setError(data.error || 'Something went wrong')
+      setError(data.detail ? `${data.error}: ${data.detail}` : (data.error || 'Something went wrong'))
       setGenerateLoading(false)
       return
     }
