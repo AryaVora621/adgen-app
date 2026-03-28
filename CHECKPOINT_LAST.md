@@ -2,32 +2,33 @@
 
 ## What Was Just Completed
 
-Full AdGen app build + deploy + UI redesign. Cleaned up boilerplate, wrote project docs and task tracking files.
+1. Verified /api/generate Vercel deployment status - build succeeded, no new 500s on current deploy.
+2. Implemented persistent image storage in `app/api/generate/route.ts`: after creating the ad set, the route now fetches each Satori-rendered PNG and uploads it to Supabase Storage bucket `ads` under `{adSetId}/{format}.png`. The permanent public URL is stored in `ads.image_url`. Falls back to dynamic Satori URL per format if upload fails.
 
 ## Current State
 
-**Deploy:** Live at adgen-app-sigma.vercel.app
-- Vercel project: `prj_duKXpfwo5jX3xWWXpEyEgl4c9Cdv`
-- Team: `team_ZbNc9N7SUc6s914AmEEMocmQ` (AryaVora621's projects)
-- GitHub: github.com/AryaVora621/adgen-app (main branch, auto-deploys)
+**Deploy:** `adgen-app-sigma.vercel.app`
+- Latest deployment: `dpl_7CfrByDJuztFLgqizLMzjE8sWD8h` (state: READY, commit `8f3f003` - cleanup)
+- Fix commit `9bd032d` (lazy Anthropic init) is live and confirmed - no 500s on that deployment
+- One logged 500 (`Business insert error`) was on the fix-commit deploy itself, likely a test run during that session; the current (cleanup) deploy has zero errors
 
-**Supabase:** Project `ecgnzqeqzrjvevtuifgd` (biz-swarm project, shared with biz-swarm-app)
-- Tables: businesses, products, ad_sets, ads (+ pre-existing: leads, subscribers)
-- RLS: open read/write with anon key
+**Code change:** `app/api/generate/route.ts` only
+- `formats` moved up, before `adRows`
+- Bucket existence check + per-format upload loop added between ad set creation and ad row insertion
+- `adRows` now use `storedImageUrls[format]`
+- Return value `image_urls` now uses `storedImageUrls`
 
-**Env vars in Vercel:** All 3 set (ANTHROPIC_API_KEY, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY)
-
-## Open Issues
-
-1. **500 on /api/generate** - was caused by module-level Anthropic client initialization. Fixed in commit `9bd032d` (lazy init, same pattern as Supabase). Fix is deployed - needs manual verification by running a generation.
-
-2. **Mixed content warning on scrape page** - browser warning when scraped product image URL is HTTP not HTTPS. This is a browser auto-upgrade (harmless), but worth noting.
+**Supabase Storage bucket:** `ads` - will be auto-created on first generation if it doesn't exist yet. Bucket is public.
 
 ## Next Action
 
-Verify the /api/generate fix by running an actual generation through the scrape or manual flow. If it works end-to-end, the core MVP is verified complete.
+Commit and deploy the storage change, then run one end-to-end generation to confirm:
+1. Bucket `ads` is created in Supabase
+2. `ads.image_url` rows contain `storage.supabase.co` URLs (not `/api/ads/image?...`)
+3. ZIP export downloads permanent PNGs correctly
 
-After that: pick from TASK_QUEUE.md backlog. Recommended next items:
-1. Auth gate on dashboard (quick win, protects the tool)
-2. Persistent Supabase Storage for images (makes ZIP export more reliable)
-3. Regenerate button (most useful UX improvement)
+After verification, pick next item from TASK_QUEUE.md (recommended: auth gate on dashboard).
+
+## Open Decisions
+
+- The anon key is used for storage uploads (same as DB). If RLS is tightened later, a service role key will be needed for the upload path in `/api/generate`.

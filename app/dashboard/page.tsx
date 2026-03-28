@@ -23,6 +23,7 @@ interface Business {
 export default function DashboardPage() {
   const [businesses, setBusinesses] = useState<Business[]>([])
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     async function load() {
@@ -49,6 +50,15 @@ export default function DashboardPage() {
   }, [])
 
   const totalAds = businesses.reduce((s, b) => s + (b.ad_count || 0), 0)
+
+  async function handleDelete(b: Business) {
+    if (!window.confirm(`Delete ${b.name} and all its ads?`)) return
+
+    setDeleting((p) => ({ ...p, [b.id]: true }))
+    await supabase.from('businesses').delete().eq('id', b.id)
+    setBusinesses((prev) => prev.filter((biz) => biz.id !== b.id))
+    setDeleting((p) => ({ ...p, [b.id]: false }))
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -162,6 +172,13 @@ export default function DashboardPage() {
                         >
                           Export ZIP
                         </a>
+                        <button
+                          onClick={() => handleDelete(b)}
+                          disabled={deleting[b.id]}
+                          className="text-sm text-red-500/70 hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {deleting[b.id] ? 'Deleting...' : 'Delete'}
+                        </button>
                       </div>
                     </td>
                   </tr>

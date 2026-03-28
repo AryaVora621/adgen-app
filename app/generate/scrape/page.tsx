@@ -91,6 +91,36 @@ export default function ScrapeGeneratePage() {
           </p>
         </div>
 
+        {/* Business section - filled first, before scraping */}
+        <section className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-5 mb-6">
+          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Business</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-zinc-300">
+                Business Name <span className="text-violet-400">*</span>
+              </label>
+              <input
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
+                placeholder="Your business"
+                className={inputClass}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-zinc-300">Brand Color</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={brandColor}
+                  onChange={(e) => setBrandColor(e.target.value)}
+                  className="w-10 h-10 bg-zinc-800 border border-zinc-700 rounded-lg cursor-pointer p-1"
+                />
+                <span className="text-sm text-zinc-500">Pick a color</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* URL input */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-6">
           <div className="flex gap-3">
@@ -120,6 +150,7 @@ export default function ScrapeGeneratePage() {
               )}
             </button>
           </div>
+          <p className="text-xs text-zinc-500 mt-2">Works best with Shopify, WooCommerce, and major e-commerce product pages.</p>
           {scrapeError && (
             <p className="text-red-400 text-sm mt-3 flex items-center gap-1.5">
               <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20">
@@ -140,36 +171,6 @@ export default function ScrapeGeneratePage() {
               </svg>
               Data scraped - review and edit below
             </div>
-
-            <section className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-5">
-              <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Business</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-zinc-300">
-                    Business Name <span className="text-violet-400">*</span>
-                  </label>
-                  <input
-                    required
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    placeholder="Your business"
-                    className={inputClass}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-zinc-300">Brand Color</label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={brandColor}
-                      onChange={(e) => setBrandColor(e.target.value)}
-                      className="w-10 h-10 bg-zinc-800 border border-zinc-700 rounded-lg cursor-pointer p-1"
-                    />
-                    <span className="text-sm text-zinc-500">Pick a color</span>
-                  </div>
-                </div>
-              </div>
-            </section>
 
             <section className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-5">
               <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Product - edit if needed</h2>

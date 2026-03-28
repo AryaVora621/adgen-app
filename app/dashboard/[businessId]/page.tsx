@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 import { use } from 'react'
@@ -22,6 +22,7 @@ interface Ad {
 
 interface AdSet {
   id: string
+  product_id: string
   product_name: string
   ads: Ad[]
 }
@@ -49,39 +50,73 @@ export default function BusinessPage({
   const [adSets, setAdSets] = useState<AdSet[]>([])
   const [loading, setLoading] = useState(true)
   const [activeFormat, setActiveFormat] = useState<Record<string, string>>({})
+  const [regenerating, setRegenerating] = useState<Record<string, boolean>>({})
+  const [regenError, setRegenError] = useState<Record<string, string>>({})
+
+  const load = useCallback(async () => {
+    const [{ data: biz }, { data: ads }] = await Promise.all([
+      supabase.from('businesses').select('name, brand_color').eq('id', businessId).single(),
+      supabase
+        .from('ads')
+        .select('*, ad_sets(id, product_id, products(name))')
+        .eq('business_id', businessId),
+    ])
+
+    if (biz) {
+      setBusinessName(biz.name)
+      if (biz.brand_color) setBrandColor(biz.brand_color)
+    }
+    if (!ads) { setLoading(false); return }
+
+    const byAdSet = new Map<string, AdSet>()
+    for (const ad of ads) {
+      const adSetId = ad.ad_set_id
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const adSetData = ad.ad_sets as any
+      const productName = adSetData?.products?.name || 'Unknown Product'
+      const productId = adSetData?.product_id || ''
+      if (!byAdSet.has(adSetId)) {
+        byAdSet.set(adSetId, { id: adSetId, product_id: productId, product_name: productName, ads: [] })
+      }
+      byAdSet.get(adSetId)!.ads.push(ad)
+    }
+
+    setAdSets(Array.from(byAdSet.values()))
+    setLoading(false)
+  }, [businessId])
 
   useEffect(() => {
-    async function load() {
-      const [{ data: biz }, { data: ads }] = await Promise.all([
-        supabase.from('businesses').select('name, brand_color').eq('id', businessId).single(),
-        supabase
-          .from('ads')
-          .select('*, ad_sets(id, product_id, products(name))')
-          .eq('business_id', businessId),
-      ])
-
-      if (biz) {
-        setBusinessName(biz.name)
-        if (biz.brand_color) setBrandColor(biz.brand_color)
-      }
-      if (!ads) { setLoading(false); return }
-
-      const byAdSet = new Map<string, AdSet>()
-      for (const ad of ads) {
-        const adSetId = ad.ad_set_id
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const productName = (ad.ad_sets as any)?.products?.name || 'Unknown Product'
-        if (!byAdSet.has(adSetId)) {
-          byAdSet.set(adSetId, { id: adSetId, product_name: productName, ads: [] })
-        }
-        byAdSet.get(adSetId)!.ads.push(ad)
-      }
-
-      setAdSets(Array.from(byAdSet.values()))
-      setLoading(false)
-    }
     load()
-  }, [businessId])
+  }, [load])
+
+  async function handleRegenerate(set: AdSet) {
+    setRegenerating((p) => ({ ...p, [set.id]: true }))
+    setRegenError((p) => ({ ...p, [set.id]: '' }))
+
+    try {
+      const res = await fetch('/api/regenerate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ad_set_id: set.id,
+          product_id: set.product_id,
+          brand_color: brandColor,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Regeneration failed')
+      }
+
+      // Reload page data to show fresh copy and images
+      await load()
+    } catch (err) {
+      setRegenError((p) => ({ ...p, [set.id]: String(err instanceof Error ? err.message : err) }))
+    } finally {
+      setRegenerating((p) => ({ ...p, [set.id]: false }))
+    }
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -120,12 +155,36 @@ export default function BusinessPage({
               const imageAd = set.ads.find((a) => a.format === currentFormat)
               const copyAd = set.ads.find((a) => a.format === 'square')
               const socialAds = set.ads.filter((a) => a.format.startsWith('social_'))
+              const isRegenerating = regenerating[set.id] || false
+              const error = regenError[set.id] || ''
 
               return (
                 <div key={set.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                   {/* Header */}
                   <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-                    <h2 className="font-semibold text-white">{set.product_name}</h2>
+                    <div className="flex items-center gap-2.5">
+                      <h2 className="font-semibold text-white">{set.product_name}</h2>
+                      <button
+                        onClick={() => handleRegenerate(set)}
+                        disabled={isRegenerating}
+                        className="text-xs px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isRegenerating ? (
+                          <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                        ) : (
+                          <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                          </svg>
+                        )}
+                        {isRegenerating ? 'Regenerating...' : 'Regenerate'}
+                      </button>
+                      {error && (
+                        <span className="text-xs text-red-400">{error}</span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1.5">
                       {Object.entries(FORMAT_LABELS).map(([fmt, label]) => (
                         <button

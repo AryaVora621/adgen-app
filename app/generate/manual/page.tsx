@@ -128,6 +128,14 @@ export default function ManualGeneratePage() {
                 placeholder="A lightweight ergonomic office chair designed for remote workers who spend 8+ hours at a desk..."
                 className={`${inputClass} resize-none`}
               />
+              <details className="mt-1">
+                <summary className="text-xs text-zinc-500 cursor-pointer hover:text-zinc-400 select-none">Tips for better copy</summary>
+                <ul className="mt-2 space-y-1 pl-3 border-l border-zinc-800">
+                  <li className="text-xs text-zinc-500">Mention specific benefits - what problem does it solve and how quickly.</li>
+                  <li className="text-xs text-zinc-500">Name the target customer - job title, lifestyle, or situation works well.</li>
+                  <li className="text-xs text-zinc-500">Include any unique differentiators - materials, certifications, or origin story.</li>
+                </ul>
+              </details>
             </Field>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Price">

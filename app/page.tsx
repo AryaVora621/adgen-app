@@ -57,6 +57,7 @@ export default function Home() {
               View dashboard
             </Link>
           </div>
+          <p className="text-xs text-zinc-500 mt-4">No account needed. Works with any product.</p>
         </div>
 
         {/* Feature pills */}
@@ -75,6 +76,40 @@ export default function Home() {
               {f}
             </span>
           ))}
+        </div>
+
+        {/* How it works */}
+        <div className="relative w-full max-w-3xl mx-auto mt-16">
+          <div className="border-t border-zinc-800 mb-12" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
+            {[
+              {
+                number: '1',
+                title: 'Input a product',
+                description: 'Paste a URL, fill a form, or upload a CSV - we handle all three.',
+              },
+              {
+                number: '2',
+                title: 'Claude writes the copy',
+                description: 'Headline, body, CTA, and social captions generated in seconds.',
+              },
+              {
+                number: '3',
+                title: 'Download your ads',
+                description: '3 image formats plus social captions, packaged in a clean ZIP.',
+              },
+            ].map(({ number, title, description }) => (
+              <div key={number} className="flex flex-col items-center text-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-violet-600 flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm font-bold text-white">{number}</span>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white mb-1">{title}</p>
+                  <p className="text-sm text-zinc-400 leading-relaxed">{description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </main>
     </div>

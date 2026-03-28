@@ -105,14 +105,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create ad set' }, { status: 500 })
   }
 
-  // Insert ads for all formats
+  // Upload rendered images to Supabase Storage so URLs are permanent
+  // Falls back to dynamic Satori URL per format if upload fails
   const formats = ['square', 'story', 'banner'] as const
+  const storedImageUrls: Record<string, string> = {}
+
+  // Ensure the 'ads' bucket exists before uploading
+  const { data: buckets } = await supabase.storage.listBuckets()
+  if (!buckets?.find((b) => b.name === 'ads')) {
+    await supabase.storage.createBucket('ads', { public: true })
+  }
+
+  for (const format of formats) {
+    try {
+      const satoriUrl = `${baseImageUrl}?${imageParams.toString()}&format=${format}`
+      const imgRes = await fetch(satoriUrl)
+      if (imgRes.ok) {
+        const buffer = await imgRes.arrayBuffer()
+        const filename = `${adSet.id}/${format}.png`
+        const { error: uploadErr } = await supabase.storage
+          .from('ads')
+          .upload(filename, buffer, { contentType: 'image/png', upsert: true })
+        if (!uploadErr) {
+          const { data: urlData } = supabase.storage.from('ads').getPublicUrl(filename)
+          storedImageUrls[format] = urlData.publicUrl
+        }
+      }
+    } catch {
+      // Storage upload failed - dynamic URL fallback applied below
+    }
+    // Fall back to the on-demand Satori URL if storage upload did not succeed
+    if (!storedImageUrls[format]) {
+      storedImageUrls[format] = `${baseImageUrl}?${imageParams.toString()}&format=${format}`
+    }
+  }
+
   const adRows = formats.map((format) => ({
     ad_set_id: adSet.id,
     business_id: businessId,
     format,
     copy_json: { headline: copy.headline, body: copy.body, cta: copy.cta },
-    image_url: `${baseImageUrl}?${imageParams.toString()}&format=${format}`,
+    image_url: storedImageUrls[format],
     platform: format === 'square' ? 'instagram' : format === 'story' ? 'instagram' : 'facebook',
   }))
 
@@ -154,8 +187,6 @@ export async function POST(req: NextRequest) {
     ad_set_id: adSet.id,
     business_id: businessId,
     copy,
-    image_urls: Object.fromEntries(
-      formats.map((f) => [f, `${baseImageUrl}?${imageParams.toString()}&format=${f}`])
-    ),
+    image_urls: storedImageUrls,
   })
 }
