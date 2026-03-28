@@ -1,10 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
 
-// Lazy init - only at request time so env vars are available in all environments
-function getClient() {
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-}
-
 export interface AdCopy {
   headline: string
   subheadline: string
@@ -21,7 +16,9 @@ export async function generateAdCopy(product: {
   price?: string
   target_audience?: string
   brand_color?: string
-}): Promise<AdCopy> {
+}, apiKey?: string): Promise<AdCopy> {
+  // Initialize client inline so the caller can supply a per-user key
+  const client = new Anthropic({ apiKey: apiKey || process.env.ANTHROPIC_API_KEY })
   const prompt = `You are an expert advertising copywriter. Generate compelling ad copy for this product.
 
 Product: ${product.name}
@@ -40,7 +37,7 @@ Return ONLY valid JSON with these exact fields (no markdown, no extra text):
   "linkedin_caption": "professional linkedin caption under 300 chars"
 }`
 
-  const message = await getClient().messages.create({
+  const message = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
     messages: [{ role: 'user', content: prompt }],

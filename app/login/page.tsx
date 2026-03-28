@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, FormEvent, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { createBrowserClient } from '@supabase/ssr'
+
 function LockIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-violet-400">
@@ -11,13 +12,16 @@ function LockIcon() {
 }
 
 function LoginForm() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const from = searchParams.get('from') || '/dashboard'
-
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('')
+  const [sent, setSent] = useState(false)
+  const [submittedEmail, setSubmittedEmail] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -25,16 +29,17 @@ function LoginForm() {
     setLoading(true)
 
     try {
-      const res = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+      const origin = window.location.origin
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: origin + '/auth/callback' },
       })
 
-      if (res.ok) {
-        router.push(from)
+      if (otpError) {
+        setError(otpError.message)
       } else {
-        setError('Incorrect password')
+        setSubmittedEmail(email)
+        setSent(true)
       }
     } catch {
       setError('Something went wrong. Try again.')
@@ -56,35 +61,54 @@ function LoginForm() {
           </div>
         </div>
 
-        <h1 className="text-lg font-semibold text-zinc-100 text-center mb-1">
-          Dashboard access
-        </h1>
-        <p className="text-sm text-zinc-500 text-center mb-6">
-          Enter your password to continue
-        </p>
+        {sent ? (
+          <>
+            <h1 className="text-lg font-semibold text-zinc-100 text-center mb-1">
+              Check your inbox
+            </h1>
+            <p className="text-sm text-zinc-500 text-center mb-6">
+              We sent a link to {submittedEmail}
+            </p>
+            <button
+              onClick={() => { setSent(false); setEmail('') }}
+              className="w-full text-sm text-zinc-400 hover:text-zinc-200 transition-colors text-center"
+            >
+              Try a different email
+            </button>
+          </>
+        ) : (
+          <>
+            <h1 className="text-lg font-semibold text-zinc-100 text-center mb-1">
+              Sign in to AdGen
+            </h1>
+            <p className="text-sm text-zinc-500 text-center mb-6">
+              Enter your email to receive a magic link
+            </p>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full bg-zinc-800 border border-zinc-700 text-zinc-100 rounded-lg px-3.5 py-2.5 text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 transition-colors"
-          />
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <input
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full bg-zinc-800 border border-zinc-700 text-zinc-100 rounded-lg px-3.5 py-2.5 text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 transition-colors"
+              />
 
-          {error && (
-            <p className="text-sm text-red-400 text-center">{error}</p>
-          )}
+              {error && (
+                <p className="text-sm text-red-400 text-center">{error}</p>
+              )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-violet-600 hover:bg-violet-500 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Checking...' : 'Continue'}
-          </button>
-        </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-violet-600 hover:bg-violet-500 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Sending...' : 'Send magic link'}
+              </button>
+            </form>
+          </>
+        )}
       </div>
     </div>
   )

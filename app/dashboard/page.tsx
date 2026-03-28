@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@supabase/supabase-js'
+import { useRouter } from 'next/navigation'
+import { createBrowserClient } from '@supabase/ssr'
 import Nav from '@/components/Nav'
 
-const supabase = createClient(
+const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
@@ -21,9 +22,43 @@ interface Business {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [businesses, setBusinesses] = useState<Business[]>([])
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState<Record<string, boolean>>({})
+  const [userEmail, setUserEmail] = useState<string | undefined>(undefined)
+  const [showApiKeyBanner, setShowApiKeyBanner] = useState(false)
+
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
+  useEffect(() => {
+    async function loadUser() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.email) {
+        setUserEmail(session.user.email)
+      }
+    }
+
+    async function checkApiKey() {
+      try {
+        const res = await fetch('/api/settings')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.has_key === false && data.plan === 'free') {
+            setShowApiKeyBanner(true)
+          }
+        }
+      } catch {
+        // silently ignore - banner is non-critical
+      }
+    }
+
+    loadUser()
+    checkApiKey()
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -64,6 +99,8 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-zinc-950">
       <Nav
         crumbs={[{ label: 'Dashboard' }]}
+        userEmail={userEmail}
+        onSignOut={handleSignOut}
         action={
           <Link
             href="/generate"
@@ -78,6 +115,19 @@ export default function DashboardPage() {
       />
 
       <main className="max-w-6xl mx-auto px-6 py-10">
+        {/* API key banner - shown when user has no key and is on free plan */}
+        {showApiKeyBanner && (
+          <div className="mb-6 bg-amber-500/10 border border-amber-500/20 rounded-xl px-5 py-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-amber-400">API key required</p>
+              <p className="text-xs text-amber-400/70 mt-0.5">Add your Anthropic API key in Settings to generate ads.</p>
+            </div>
+            <Link href="/settings" className="text-xs font-semibold text-amber-400 hover:text-amber-300 transition-colors whitespace-nowrap ml-4">
+              Add key →
+            </Link>
+          </div>
+        )}
+
         {/* Stats */}
         {!loading && businesses.length > 0 && (
           <div className="grid grid-cols-3 gap-4 mb-8">

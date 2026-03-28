@@ -1,8 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase'
 import { generateAdCopy } from '@/lib/claude'
+import { getUser, getUserProfile } from '@/lib/supabase-server'
 
 export async function POST(req: NextRequest) {
+  // Authenticate the request and resolve the API key to use
+  const user = await getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
+  const profile = await getUserProfile(user.id)
+  const apiKey = profile?.plan === 'pro'
+    ? process.env.ANTHROPIC_API_KEY
+    : profile?.anthropic_api_key
+
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: 'no_api_key', message: 'Add your Anthropic API key in Settings to generate ads.' },
+      { status: 402 }
+    )
+  }
+
   const body = await req.json()
   const { ad_set_id, product_id, brand_color = '#6366f1' } = body
 
@@ -35,7 +54,7 @@ export async function POST(req: NextRequest) {
       price: product.price,
       target_audience: product.target_audience,
       brand_color,
-    })
+    }, apiKey)
   } catch (err) {
     console.error('Claude error:', err)
     return NextResponse.json({ error: 'Failed to generate ad copy', detail: String(err) }, { status: 500 })

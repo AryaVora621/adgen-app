@@ -1,8 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase'
 import { generateAdCopy } from '@/lib/claude'
+import { getUser, getUserProfile } from '@/lib/supabase-server'
 
 export async function POST(req: NextRequest) {
+  // Authenticate the request and resolve the API key to use
+  const user = await getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
+  const profile = await getUserProfile(user.id)
+  const apiKey = profile?.plan === 'pro'
+    ? process.env.ANTHROPIC_API_KEY
+    : profile?.anthropic_api_key
+
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: 'no_api_key', message: 'Add your Anthropic API key in Settings to generate ads.' },
+      { status: 402 }
+    )
+  }
+
   const body = await req.json()
   const {
     business_name,
@@ -25,12 +44,13 @@ export async function POST(req: NextRequest) {
 
   const supabase = getSupabase()
 
-  // Upsert business
+  // Upsert business - scoped to the authenticated user so names don't collide across accounts
   let businessId: string
   const { data: existing } = await supabase
     .from('businesses')
     .select('id')
     .eq('name', business_name)
+    .eq('user_id', user.id)
     .limit(1)
     .single()
 
@@ -39,7 +59,7 @@ export async function POST(req: NextRequest) {
   } else {
     const { data: newBiz, error: bizError } = await supabase
       .from('businesses')
-      .insert({ name: business_name, website: business_website, brand_color })
+      .insert({ name: business_name, website: business_website, brand_color, user_id: user.id })
       .select('id')
       .single()
     if (bizError || !newBiz) {
@@ -78,7 +98,7 @@ export async function POST(req: NextRequest) {
       price: product_price,
       target_audience,
       brand_color,
-    })
+    }, apiKey)
   } catch (err) {
     console.error('Claude error:', err)
     return NextResponse.json({ error: 'Failed to generate ad copy', detail: String(err) }, { status: 500 })
