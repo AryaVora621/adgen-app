@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 import { use } from 'react'
+import Nav from '@/components/Nav'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,6 +26,18 @@ interface AdSet {
   ads: Ad[]
 }
 
+const FORMAT_LABELS: Record<string, string> = {
+  square: 'Square 1:1',
+  story: 'Story 9:16',
+  banner: 'Banner 16:9',
+}
+
+const PLATFORM_ICONS: Record<string, string> = {
+  social_instagram: 'Instagram',
+  social_twitter: 'X / Twitter',
+  social_linkedin: 'LinkedIn',
+}
+
 export default function BusinessPage({
   params,
 }: {
@@ -32,6 +45,7 @@ export default function BusinessPage({
 }) {
   const { businessId } = use(params)
   const [businessName, setBusinessName] = useState('')
+  const [brandColor, setBrandColor] = useState('#7c3aed')
   const [adSets, setAdSets] = useState<AdSet[]>([])
   const [loading, setLoading] = useState(true)
   const [activeFormat, setActiveFormat] = useState<Record<string, string>>({})
@@ -39,17 +53,19 @@ export default function BusinessPage({
   useEffect(() => {
     async function load() {
       const [{ data: biz }, { data: ads }] = await Promise.all([
-        supabase.from('businesses').select('name').eq('id', businessId).single(),
+        supabase.from('businesses').select('name, brand_color').eq('id', businessId).single(),
         supabase
           .from('ads')
           .select('*, ad_sets(id, product_id, products(name))')
           .eq('business_id', businessId),
       ])
 
-      if (biz) setBusinessName(biz.name)
+      if (biz) {
+        setBusinessName(biz.name)
+        if (biz.brand_color) setBrandColor(biz.brand_color)
+      }
       if (!ads) { setLoading(false); return }
 
-      // Group by ad_set
       const byAdSet = new Map<string, AdSet>()
       for (const ad of ads) {
         const adSetId = ad.ad_set_id
@@ -67,105 +83,107 @@ export default function BusinessPage({
     load()
   }, [businessId])
 
-  const IMAGE_FORMATS = ['square', 'story', 'banner']
-  const SOCIAL_FORMATS = ['social_instagram', 'social_twitter', 'social_linkedin']
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center gap-4">
-          <Link href="/dashboard" className="text-gray-400 hover:text-gray-600 text-sm">
-            Dashboard
-          </Link>
-          <span className="text-gray-300">/</span>
-          <span className="font-semibold">{businessName}</span>
-          <div className="ml-auto">
-            <a
-              href={`/api/export/${businessId}`}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
-            >
-              Export ZIP
-            </a>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-zinc-950">
+      <Nav
+        crumbs={[
+          { label: 'Dashboard', href: '/dashboard' },
+          { label: businessName || '...' },
+        ]}
+        action={
+          <a
+            href={`/api/export/${businessId}`}
+            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm font-medium px-4 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+          >
+            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Export ZIP
+          </a>
+        }
+      />
 
       <main className="max-w-6xl mx-auto px-6 py-10">
         {loading ? (
-          <div className="text-gray-400 py-20 text-center">Loading...</div>
+          <div className="flex items-center justify-center py-24">
+            <svg className="animate-spin w-6 h-6 text-zinc-500" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          </div>
         ) : adSets.length === 0 ? (
-          <div className="text-center py-20 text-gray-400">No ad sets yet.</div>
+          <div className="text-center py-24 text-zinc-500">No ad sets for this business yet.</div>
         ) : (
-          <div className="space-y-12">
+          <div className="space-y-8">
             {adSets.map((set) => {
               const currentFormat = activeFormat[set.id] || 'square'
               const imageAd = set.ads.find((a) => a.format === currentFormat)
               const copyAd = set.ads.find((a) => a.format === 'square')
+              const socialAds = set.ads.filter((a) => a.format.startsWith('social_'))
 
               return (
-                <div key={set.id} className="bg-white rounded-xl border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold">{set.product_name}</h2>
-                    <div className="flex gap-2">
-                      {IMAGE_FORMATS.map((f) => (
+                <div key={set.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+                    <h2 className="font-semibold text-white">{set.product_name}</h2>
+                    <div className="flex items-center gap-1.5">
+                      {Object.entries(FORMAT_LABELS).map(([fmt, label]) => (
                         <button
-                          key={f}
-                          onClick={() =>
-                            setActiveFormat((prev) => ({ ...prev, [set.id]: f }))
-                          }
+                          key={fmt}
+                          onClick={() => setActiveFormat((p) => ({ ...p, [set.id]: fmt }))}
                           className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                            currentFormat === f
-                              ? 'bg-indigo-600 text-white'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            currentFormat === fmt
+                              ? 'bg-violet-600 text-white'
+                              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'
                           }`}
                         >
-                          {f}
+                          {label}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-0">
                     {/* Image preview */}
-                    <div>
+                    <div className="lg:col-span-3 p-6 flex items-center justify-center bg-zinc-950/50 min-h-64">
                       {imageAd?.image_url ? (
                         <img
                           src={imageAd.image_url}
                           alt={`${set.product_name} - ${currentFormat}`}
-                          className="w-full rounded-lg border border-gray-100 shadow-sm"
+                          className={`rounded-xl shadow-lg max-h-96 ${
+                            currentFormat === 'story' ? 'max-w-[200px]' : 'w-full max-w-lg'
+                          }`}
                         />
                       ) : (
-                        <div className="bg-gray-100 rounded-lg aspect-square flex items-center justify-center text-gray-400">
+                        <div className="w-full aspect-square max-w-64 bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-600 text-sm">
                           No preview
                         </div>
                       )}
                     </div>
 
                     {/* Copy panel */}
-                    <div className="space-y-4">
+                    <div className="lg:col-span-2 border-l border-zinc-800 p-6 space-y-5">
+                      {/* Ad copy */}
                       {copyAd?.copy_json && (
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           <div>
-                            <div className="text-xs font-semibold text-gray-400 uppercase mb-1">
-                              Headline
-                            </div>
-                            <p className="text-gray-800 font-semibold">
+                            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Headline</p>
+                            <p className="text-zinc-100 font-semibold text-sm leading-snug">
                               {(copyAd.copy_json as { headline?: string }).headline}
                             </p>
                           </div>
                           <div>
-                            <div className="text-xs font-semibold text-gray-400 uppercase mb-1">
-                              Body
-                            </div>
-                            <p className="text-gray-600 text-sm">
+                            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Body</p>
+                            <p className="text-zinc-400 text-sm leading-relaxed">
                               {(copyAd.copy_json as { body?: string }).body}
                             </p>
                           </div>
                           <div>
-                            <div className="text-xs font-semibold text-gray-400 uppercase mb-1">
-                              CTA
-                            </div>
-                            <span className="inline-block bg-indigo-100 text-indigo-700 text-sm font-medium px-3 py-1 rounded">
+                            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">CTA</p>
+                            <span
+                              className="inline-block text-white text-xs font-semibold px-3 py-1.5 rounded-lg"
+                              style={{ backgroundColor: brandColor }}
+                            >
                               {(copyAd.copy_json as { cta?: string }).cta}
                             </span>
                           </div>
@@ -173,22 +191,19 @@ export default function BusinessPage({
                       )}
 
                       {/* Social captions */}
-                      <div className="border-t border-gray-100 pt-4 space-y-3">
-                        {SOCIAL_FORMATS.map((sf) => {
-                          const socialAd = set.ads.find((a) => a.format === sf)
-                          if (!socialAd) return null
-                          return (
-                            <div key={sf}>
-                              <div className="text-xs font-semibold text-gray-400 uppercase mb-1">
-                                {sf.replace('social_', '')}
-                              </div>
-                              <p className="text-gray-600 text-sm">
-                                {(socialAd.copy_json as { caption?: string }).caption}
+                      {socialAds.length > 0 && (
+                        <div className="border-t border-zinc-800 pt-5 space-y-4">
+                          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Social Captions</p>
+                          {socialAds.map((ad) => (
+                            <div key={ad.id}>
+                              <p className="text-xs text-zinc-500 mb-1.5">{PLATFORM_ICONS[ad.format] || ad.format}</p>
+                              <p className="text-zinc-300 text-xs leading-relaxed">
+                                {(ad.copy_json as { caption?: string }).caption}
                               </p>
                             </div>
-                          )
-                        })}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

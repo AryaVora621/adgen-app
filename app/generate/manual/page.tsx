@@ -3,6 +3,33 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Nav from '@/components/Nav'
+
+function Field({
+  label,
+  required,
+  children,
+  hint,
+}: {
+  label: string
+  required?: boolean
+  children: React.ReactNode
+  hint?: string
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-sm font-medium text-zinc-300">
+        {label}
+        {required && <span className="text-violet-400 ml-1">*</span>}
+      </label>
+      {children}
+      {hint && <p className="text-xs text-zinc-500">{hint}</p>}
+    </div>
+  )
+}
+
+const inputClass =
+  'w-full bg-zinc-800 border border-zinc-700 text-zinc-100 rounded-lg px-3.5 py-2.5 text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 transition-colors'
 
 export default function ManualGeneratePage() {
   const router = useRouter()
@@ -18,7 +45,7 @@ export default function ManualGeneratePage() {
     const payload = {
       business_name: form.get('business_name'),
       business_website: form.get('business_website'),
-      brand_color: form.get('brand_color') || '#6366f1',
+      brand_color: form.get('brand_color') || '#7c3aed',
       product_name: form.get('product_name'),
       product_description: form.get('product_description'),
       product_image_url: form.get('product_image_url'),
@@ -44,120 +71,99 @@ export default function ManualGeneratePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-2xl mx-auto flex items-center gap-4">
-          <Link href="/generate" className="text-gray-400 hover:text-gray-600 text-sm">
-            Generate
-          </Link>
-          <span className="text-gray-300">/</span>
-          <span className="font-semibold">Manual Entry</span>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-zinc-950">
+      <Nav
+        crumbs={[
+          { label: 'Generate', href: '/generate' },
+          { label: 'Manual Entry' },
+        ]}
+      />
 
-      <main className="max-w-2xl mx-auto px-6 py-10">
-        <h1 className="text-2xl font-bold mb-8">Enter product details</h1>
+      <main className="max-w-2xl mx-auto px-6 py-12">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-white mb-1">Enter product details</h1>
+          <p className="text-sm text-zinc-400">Claude will generate copy and image ads from this information.</p>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Business section */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Business</h2>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Business Name <span className="text-red-400">*</span>
-              </label>
-              <input
-                name="business_name"
-                required
-                placeholder="Acme Corp"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
+          {/* Business */}
+          <section className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-5">
+            <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Business</h2>
+            <Field label="Business Name" required>
+              <input name="business_name" required placeholder="Acme Corp" className={inputClass} />
+            </Field>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-                <input
-                  name="business_website"
-                  placeholder="https://acme.com"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Brand Color</label>
-                <input
-                  name="brand_color"
-                  type="color"
-                  defaultValue="#6366f1"
-                  className="w-full h-10 border border-gray-300 rounded-lg px-1 cursor-pointer"
-                />
-              </div>
+              <Field label="Website">
+                <input name="business_website" placeholder="https://acme.com" className={inputClass} />
+              </Field>
+              <Field label="Brand Color" hint="Used in generated images">
+                <div className="flex items-center gap-3">
+                  <input
+                    name="brand_color"
+                    type="color"
+                    defaultValue="#7c3aed"
+                    className="w-10 h-10 bg-zinc-800 border border-zinc-700 rounded-lg cursor-pointer p-1"
+                  />
+                  <span className="text-sm text-zinc-500">Pick a color</span>
+                </div>
+              </Field>
             </div>
-          </div>
+          </section>
 
-          {/* Product section */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Product</h2>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Product Name <span className="text-red-400">*</span>
-              </label>
-              <input
-                name="product_name"
-                required
-                placeholder="Super Widget Pro"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description <span className="text-red-400">*</span>
-              </label>
+          {/* Product */}
+          <section className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-5">
+            <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Product</h2>
+            <Field label="Product Name" required>
+              <input name="product_name" required placeholder="Super Widget Pro" className={inputClass} />
+            </Field>
+            <Field
+              label="Description"
+              required
+              hint="What does it do? Who is it for? The more detail, the better the copy."
+            >
               <textarea
                 name="product_description"
                 required
                 rows={4}
-                placeholder="What does this product do? Who is it for? What problem does it solve?"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                placeholder="A lightweight ergonomic office chair designed for remote workers who spend 8+ hours at a desk..."
+                className={`${inputClass} resize-none`}
               />
-            </div>
+            </Field>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
-                <input
-                  name="product_price"
-                  placeholder="$49"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Product Image URL
-                </label>
-                <input
-                  name="product_image_url"
-                  placeholder="https://..."
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
+              <Field label="Price">
+                <input name="product_price" placeholder="$249" className={inputClass} />
+              </Field>
+              <Field label="Target Audience">
+                <input name="target_audience" placeholder="Remote workers, 25-45" className={inputClass} />
+              </Field>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Target Audience</label>
-              <input
-                name="target_audience"
-                placeholder="Small business owners, 25-45"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
+            <Field label="Product Image URL" hint="Optional - will appear in generated images">
+              <input name="product_image_url" placeholder="https://cdn.example.com/product.jpg" className={inputClass} />
+            </Field>
+          </section>
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-lg">
+              {error}
+            </div>
+          )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold py-3 rounded-xl transition-colors"
+            className="w-full bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
           >
-            {loading ? 'Generating ads...' : 'Generate Ads'}
+            {loading ? (
+              <>
+                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Generating ads...
+              </>
+            ) : (
+              'Generate Ads'
+            )}
           </button>
         </form>
       </main>
